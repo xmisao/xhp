@@ -1,5 +1,3 @@
-require 'open-uri'
-require 'pp'
 require 'net/http'
 require 'json'
 
@@ -14,9 +12,22 @@ module XHP
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
-      #http.verify_mode = OpenSSL::SSL::VERIFY_NONE
 
-      http.set_debug_output $stderr
+      http.set_debug_output $stderr if $xhp_debug
+
+      http.start do |h|
+        response = h.request(request)
+      end
+    end
+
+    def get(url)
+      uri = URI.parse(url)
+      request = Net::HTTP::Get.new(uri.request_uri)
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+
+      http.set_debug_output $stderr if $xhp_debug
 
       http.start do |h|
         response = h.request(request)
@@ -67,9 +78,38 @@ module XHP
         RequestToken.new(json['access_token'], json['expires_in'], json['refresh_token'])
       end
     end
+
+    module Status
+      class Tag
+        def to_s
+          '6021,6022,6023,6024,6025,6026,6027,6028,6029'
+        end
+      end
+
+      def innerscan(token, tag = nil, date = 1, from = nil, to = nil)
+        url_part = ["https://www.healthplanet.jp/status/innerscan.json?access_token=#{token.access_token}&date=#{date}"]
+        url_part << "tag=#{tag.to_s}" if tag
+        url_part << "from=#{format_date(from)}" if from
+        url_part << "to=#{format_date(to)}" if to
+
+        url = url_part.join('&')
+        res = get(url)
+        raise "Status API return response code #{res.code}" unless res.code == '200'
+        json = JSON.parse(res.body)
+      end
+
+      def format_date(date)
+        if date.kind_of?(Date)
+          date.strftime("%Y%m%d%H%M%s")
+        elsif date.kind_of?(String)
+          date
+        end
+      end
+    end
   end
 
   class Client
     include HealthPlanet::OAuth
+    include HealthPlanet::Status
   end
 end
