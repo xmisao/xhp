@@ -96,6 +96,9 @@ module XHP
         res = get(url)
         raise "Status API return response code #{res.code}" unless res.code == '200'
         json = JSON.parse(res.body)
+        json.extend(ResponseHolder)
+        json.http_response = res
+        json
       end
 
       def format_date(date)
@@ -106,6 +109,10 @@ module XHP
         end
       end
     end
+  end
+
+  module ResponseHolder
+    attr_accessor :http_response
   end
 
   class Client
